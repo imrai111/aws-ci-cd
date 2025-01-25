@@ -1,15 +1,9 @@
 #!/bin/bash
-set -e
 
-# Define variables
-CONTAINER_NAME="simple-python-app"  # Name of the Docker container
+CONTAINER_NAME="simple-python-app"
 
-echo "Checking if the container is running..."
-if [ "$(docker ps -q -f name=$CONTAINER_NAME)" ]; then
-    echo "Stopping the running container..."
-    docker stop $CONTAINER_NAME
-    docker rm $CONTAINER_NAME
-    echo "Container stopped and removed successfully."
-else
-    echo "No running container found with the name $CONTAINER_NAME."
-fi
+echo "Stopping the container if it exists..."
+docker stop $CONTAINER_NAME || true
+docker rm $CONTAINER_NAME || true
+
+echo "Container stopped."

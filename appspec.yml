@@ -15,6 +15,6 @@ hooks:
   AfterInstall:
     - location: /home/ubuntu/start_container.sh
       timeout: 180
-      runas: ubuntu
+      runas: root
 
 

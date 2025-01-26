@@ -5,7 +5,7 @@ files:
     destination: /home/ubuntu/start_container.sh
 
 permissions:
-  - object: /home/ubuntu/start.sh
+  - object: /home/ubuntu/start_container.sh
     pattern: '**/*'
     owner: ubuntu
     group: ubuntu

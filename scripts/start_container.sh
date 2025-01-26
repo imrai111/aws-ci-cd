@@ -1,44 +1,57 @@
 #!/bin/bash
-set -e
-
-# Define variables
-AWS_REGION="us-east-1"
-S3_BUCKET="simple-python-bucket"
-ARTIFACT_PATH="artifacts/docker-image.tar.gz"
-DOCKER_IMAGE_TAR="docker-image.tar.gz"
-CONTAINER_NAME="simple-python-app"
-PORT=5000  # Flask app listening port
-
-# Export AWS region
-export AWS_REGION
 
 # Fetch AWS credentials from Parameter Store
-echo "Fetching AWS credentials from Parameter Store..."
-AWS_ACCESS_KEY_ID=$(aws ssm get-parameter --name "/myapp/docker-credentials/aws-access-key-id" --with-decryption --query "Parameter.Value" --output text --region $AWS_REGION)
-AWS_SECRET_ACCESS_KEY=$(aws ssm get-parameter --name "/myapp/docker-credentials/aws-secret-access-key" --with-decryption --query "Parameter.Value" --output text --region $AWS_REGION)
+AWS_ACCESS_KEY_ID=$(aws ssm get-parameter --name "/myapp/docker-credentials/aws-access-key-id" --with-decryption --query "Parameter.Value" --output text)
+AWS_SECRET_ACCESS_KEY=$(aws ssm get-parameter --name "/myapp/docker-credentials/aws-secret-access-key" --with-decryption --query "Parameter.Value" --output text)
 
-# Configure AWS credentials for S3 access
+# Set the AWS credentials as environment variables (for the current session)
 export AWS_ACCESS_KEY_ID
 export AWS_SECRET_ACCESS_KEY
 
-# Step 1: Download the Docker image tar.gz from S3
-echo "Downloading Docker image tar.gz from S3..."
-aws s3 cp s3://$S3_BUCKET/$ARTIFACT_PATH $DOCKER_IMAGE_TAR
+# Fetch the ECR URI from Parameter Store
+ECR_URI=$(aws ssm get-parameter --name "/myaap/docker-registry/url" --with-decryption --query "Parameter.Value" --output text)
 
-# Step 2: Extract the tar.gz file (if necessary)
-echo "Extracting Docker image tar.gz file..."
-tar -xzf $DOCKER_IMAGE_TAR
+# Check if port 5000 is in use
+if lsof -i :5000; then
+  echo "Port 5000 is already in use, finding and stopping the process..."
+  # Identify the process using port 5000 and kill it
+  PID=$(sudo lsof -t -i :5000)
+  sudo kill -9 $PID
+else
+  echo "Port 5000 is free, proceeding with next steps..."
+fi
 
-# Step 3: Load the Docker image
-echo "Loading Docker image into Docker..."
-docker load -i ${DOCKER_IMAGE_TAR%.gz}  # Remove .gz extension for the Docker tar file
+# Check if the image already exists locally
+if [[ "$(docker images -q $ECR_URI:latest 2> /dev/null)" != "" ]]; then
+  echo "Image already exists locally. Moving the existing image to a temporary directory..."
+  
+  # Create a temporary directory to store the existing image
+  mkdir -p /tmp/docker_images
+  docker save $ECR_URI:latest -o /tmp/docker_images/simple-python-flask-app.tar
 
-# Step 4: Start the Docker container
-echo "Starting the Docker container with the loaded image..."
-docker run -d \
-  --name $CONTAINER_NAME \
-  -p $PORT:5000 \
-  simple-python-app:latest
+  # Stop and remove the old container if it's using port 5000
+  CONTAINER_NAME="simple-python-flask-app"
+  EXISTING_CONTAINER=$(docker ps -a -q -f "name=$CONTAINER_NAME")
+  if [ "$EXISTING_CONTAINER" ]; then
+    echo "Stopping and removing the existing container..."
+    docker stop $EXISTING_CONTAINER
+    docker rm $EXISTING_CONTAINER
+  fi
+else
+  echo "No existing image found, proceeding with new image..."
+fi
 
-echo "Container started successfully!"
+# Login to ECR
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $ECR_URI
+
+# Pull the Docker image
+echo "Pulling the latest Docker image from ECR..."
+docker pull $ECR_URI:latest
+
+# Run the container with the latest image
+echo "Running the container with the latest image..."
+docker run -d --name simple-python-flask-app -p 5000:5000 $ECR_URI:latest
+
+# Success message
+echo "Container started and exposed on port 5000."
 

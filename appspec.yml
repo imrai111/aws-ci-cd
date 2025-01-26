@@ -2,10 +2,10 @@ version: 0.0
 os: linux
 files:
   - source: /scripts/start_container.sh
-    destination: /home/ubuntu/start_container.sh
+    destination: scripts/start_container.sh
 
 permissions:
-  - object: /home/ubuntu/start_container.sh
+  - object: scripts/start_container.sh
     pattern: '**/*'
     owner: ubuntu
     group: ubuntu
@@ -13,8 +13,8 @@ permissions:
 
 hooks:
   AfterInstall:
-    - location: /home/ubuntu/start_container.sh
+    - location: scripts/start_container.sh
       timeout: 180
-      runas: root
+      runas: ubuntu
 
 

@@ -1,9 +1,6 @@
 #!/bin/bash
 set -e
 
-#!/bin/bash
-set -e
-
 # Define variables
 AWS_REGION="us-east-1"
 S3_BUCKET="simple-python-bucket"

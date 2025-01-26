@@ -1,13 +1,20 @@
 version: 0.0
 os: linux
+files:
+  - source: /scripts/start_container.sh
+    destination: /home/ubuntu/start_container.sh
+
+permissions:
+  - object: /home/ubuntu/start.sh
+    pattern: '**/*'
+    owner: ubuntu
+    group: ubuntu
+    mode: 755
 
 hooks:
-  ApplicationStop:
-    - location: scripts/stop_container.sh
-      timeout: 300
-      runas: root
   AfterInstall:
-    - location: scripts/start_container.sh
-      timeout: 300
-      runas: root
+    - location: /home/ubuntu/start_container.sh
+      timeout: 180
+      runas: ubuntu
+
 
